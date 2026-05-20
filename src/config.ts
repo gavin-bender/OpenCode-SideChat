@@ -132,7 +132,9 @@ function ensureConfigFile(): void {
   try {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     if (!existsSync(path)) writeFileSync(path, generateDefaultConfig(), "utf-8");
-  } catch {}
+  } catch (err) {
+    console.error(`[SideChat] Failed to create config:`, err);
+  }
 }
 
 export function loadConfig(): SideConfig {
@@ -144,7 +146,9 @@ export function loadConfig(): SideConfig {
     const json = stripTrailingCommas(stripJsoncComments(text));
     const parsed = JSON.parse(json);
     if (parsed && typeof parsed === "object") raw = parsed as Record<string, unknown>;
-  } catch {}
+  } catch (err) {
+    console.warn(`[SideChat] Failed to parse config, using defaults:`, err);
+  }
 
   return {
     model: parseStringOrNull(raw.model),

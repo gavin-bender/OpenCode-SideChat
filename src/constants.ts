@@ -38,7 +38,6 @@ export const ADDITIONAL_PERMISSION_IDS = [
   "external_directory",
   "todowrite",
   "question",
-  "websearch",
   "codesearch",
   "repo_clone",
   "repo_overview",

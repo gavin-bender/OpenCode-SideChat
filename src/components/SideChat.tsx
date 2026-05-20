@@ -6,8 +6,12 @@ import type { OverlayState } from "../types";
 
 const MAX_VISIBLE_MESSAGES = 20;
 
+type InlinePart =
+  | { type: "text" | "code" | "bold" | "italic"; text: string }
+  | { type: "link"; text: string; url: string };
+
 function renderInlineMarkdown(text: string) {
-  const parts: Array<{ type: string; text: string }> = [];
+  const parts: InlinePart[] = [];
   let remaining = text;
 
   while (remaining.length > 0) {
@@ -42,7 +46,9 @@ function renderInlineMarkdown(text: string) {
         parts.push({ type: "text", text: remaining });
         break;
       }
-      parts.push({ type: "text", text: remaining.slice(1, closeBracket) });
+      const linkText = remaining.slice(1, closeBracket);
+      const linkUrl = remaining.slice(closeBracket + 2, closeParen);
+      parts.push({ type: "link", text: linkText, url: linkUrl });
       remaining = remaining.slice(closeParen + 1);
     } else {
       const nextSpecial = searchSpecialChar(remaining);
@@ -68,6 +74,14 @@ function searchSpecialChar(text: string): number {
     }
   }
   return -1;
+}
+
+function formatKeybind(kb: string | false): string | false {
+  if (kb === false) return false;
+  return kb
+    .split(/[+]/)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+    .join("+");
 }
 
 export function SideChat(props: OverlayState & { width: number; transcriptHeight: number; tokenLimit: number }) {
@@ -159,6 +173,7 @@ export function SideChat(props: OverlayState & { width: number; transcriptHeight
       position="absolute"
       bottom={0}
       right={0}
+      onMouseDown={() => input?.focus()}
     >
       <box
         width={panelWidth}
@@ -181,9 +196,7 @@ export function SideChat(props: OverlayState & { width: number; transcriptHeight
                 <b>{"OpenCode-SideChat"}</b>
               </text>
             </box>
-            <text fg={theme.success}>
-              <b>{"[f]"}</b>
-            </text>
+
           </box>
           <box flexDirection="row" gap={1} alignItems="center">
             <text fg={theme.textMuted}>{shortModelName()}</text>
@@ -205,21 +218,23 @@ export function SideChat(props: OverlayState & { width: number; transcriptHeight
           >
             <box flexDirection="column" gap={1} paddingTop={1} paddingBottom={1} width={contentWidth - 2}>
               {msgs().length > 0 ? (
-                msgs().map((msg) => (
-                  <box flexDirection="column" gap={0}>
-                    <text fg={msg.role === "assistant" ? theme.secondary : theme.text}>
-                      <b>{msg.role === "assistant" ? "A:" : "You:"}</b>
-                    </text>
-                    {msg.reasoning.map((r) => renderThinking(r))}
-                    {msg.text ? (
-                      <box flexDirection="column">
-                        <RenderMarkdown text={msg.text} theme={theme} />
-                      </box>
-                    ) : (
-                      <text>{""}</text>
-                    )}
-                  </box>
-                ))
+                <For each={msgs()}>
+                  {(msg) => (
+                    <box flexDirection="column" gap={0}>
+                      <text fg={msg.role === "assistant" ? theme.secondary : theme.text}>
+                        <b>{msg.role === "assistant" ? "Agent:" : "You:"}</b>
+                      </text>
+                      {msg.reasoning.map((r) => renderThinking(r))}
+                      {msg.text ? (
+                        <box flexDirection="column">
+                          <RenderMarkdown text={msg.text} theme={theme} />
+                        </box>
+                      ) : (
+                        <text>{""}</text>
+                      )}
+                    </box>
+                  )}
+                </For>
               ) : props.state.loading ? (
                 <text fg={theme.textMuted}>{THINKING_TEXT}</text>
               ) : (
@@ -267,13 +282,21 @@ export function SideChat(props: OverlayState & { width: number; transcriptHeight
           paddingRight={1}
           alignItems="center"
         >
-          <text fg={theme.secondary}><b>{"Alt+C"}</b></text>
-          <text fg={theme.primary}>{"Clear"}</text>
-          <text fg={theme.textMuted}>{"·"}</text>
-          <text fg={theme.secondary}><b>{"Alt+T"}</b></text>
-          <text fg={theme.primary}>{"Thinking"}</text>
-          <text fg={theme.textMuted}>{props.thinkCollapsed ? "" : "(on)"}</text>
-          <text fg={theme.textMuted}>{"·"}</text>
+          {formatKeybind(props.clearKeybind) && (
+            <box flexDirection="row" gap={1} alignItems="center">
+              <text fg={theme.secondary}><b>{formatKeybind(props.clearKeybind)}</b></text>
+              <text fg={theme.primary}>{"Clear"}</text>
+              <text fg={theme.textMuted}>{"·"}</text>
+            </box>
+          )}
+          {formatKeybind(props.thinkToggleKeybind) && (
+            <box flexDirection="row" gap={1} alignItems="center">
+              <text fg={theme.secondary}><b>{formatKeybind(props.thinkToggleKeybind)}</b></text>
+              <text fg={theme.primary}>{"Thinking"}</text>
+              <text fg={theme.textMuted}>{props.thinkCollapsed ? "" : "(on)"}</text>
+              <text fg={theme.textMuted}>{"·"}</text>
+            </box>
+          )}
           <text fg={theme.secondary}><b>{"Tab"}</b></text>
           <text fg={theme.primary}>{"Model"}</text>
         </box>
@@ -282,39 +305,64 @@ export function SideChat(props: OverlayState & { width: number; transcriptHeight
   );
 }
 
+type RenderBlock =
+  | { type: "line"; style?: "heading" | "blockquote" | "listitem" | "hr"; parts: InlinePart[] }
+  | { type: "codeblock"; codeText: string };
+
 function RenderMarkdown(props: { text: string; theme: import("@opencode-ai/plugin/tui").TuiThemeCurrent }) {
-  const lines = createMemo(() => {
+  const t = props.theme;
+
+  const lines = createMemo((): RenderBlock[] => {
     const text = props.text;
-    const result: Array<{ type: "line" | "codeblock"; parts: Array<{ type: string; text: string }>; codeText?: string }> = [];
+    const result: RenderBlock[] = [];
+
     let inCodeBlock = false;
     let codeBuffer = "";
 
-    for (const line of text.split("\n")) {
-      if (line.startsWith("```")) {
+    for (const rawLine of text.split("\n")) {
+      if (rawLine.startsWith("```")) {
         if (inCodeBlock) {
-          result.push({ type: "codeblock", parts: [], codeText: codeBuffer });
+          result.push({ type: "codeblock", codeText: codeBuffer });
           codeBuffer = "";
         }
         inCodeBlock = !inCodeBlock;
         continue;
       }
       if (inCodeBlock) {
-        codeBuffer += (codeBuffer ? "\n" : "") + line;
+        codeBuffer += (codeBuffer ? "\n" : "") + rawLine;
         continue;
       }
 
-      const parts = renderInlineMarkdown(line);
-      result.push({ type: "line", parts });
+      // Detect block-level styles
+      let line = rawLine;
+      let style: "heading" | "blockquote" | "listitem" | "hr" | undefined;
+
+      if (/^#{1,6}\s/.test(line)) {
+        style = "heading";
+        line = line.replace(/^#{1,6}\s+/, "");
+      } else if (line.startsWith("> ")) {
+        style = "blockquote";
+        line = line.slice(2);
+      } else if (/^[-*]\s/.test(line)) {
+        style = "listitem";
+        line = line.replace(/^[-*]\s/, "");
+      } else if (/^\d+\.\s/.test(line)) {
+        style = "listitem";
+        // Keep number prefix (1., 2. etc.) visible
+      } else if (/^[-*=_]{3,}$/.test(line)) {
+        style = "hr";
+        line = "";
+      }
+
+      result.push({ type: "line", style, parts: renderInlineMarkdown(line) });
     }
 
     if (inCodeBlock && codeBuffer) {
-      result.push({ type: "codeblock", parts: [], codeText: codeBuffer });
+      result.push({ type: "codeblock", codeText: codeBuffer });
     }
 
     return result;
   });
-
-  const t = props.theme;
 
   return (
     <For each={lines()}>
@@ -326,20 +374,52 @@ function RenderMarkdown(props: { text: string; theme: import("@opencode-ai/plugi
               paddingLeft={1}
               paddingRight={1}
             >
-              <text fg={t.markdownCode}>{block.codeText}</text>
+              <text fg={t.markdownCodeBlock}>{block.codeText}</text>
             </box>
           );
         }
+
+        const s = block.style;
+        let textColor: import("@opentui/core").RGBA;
+        if (s === "heading") {
+          textColor = t.markdownHeading;
+        } else if (s === "blockquote") {
+          textColor = t.markdownBlockQuote;
+        } else if (s === "listitem") {
+          textColor = t.markdownListItem;
+        } else if (s === "hr") {
+          textColor = t.markdownHorizontalRule;
+        } else {
+          textColor = t.markdownText;
+        }
+
+        if (s === "hr") {
+          return <text fg={t.markdownHorizontalRule}>{"―".repeat(8)}</text>;
+        }
+
+        // Render inline parts with appropriate colors
         return (
           <box flexDirection="row" flexWrap="wrap" gap={0}>
-              <For each={block.parts}>
-                {(part) => {
-                  if (part.type === "bold") return <text><b>{part.text}</b></text>;
-                  if (part.type === "italic") return <text><i>{part.text}</i></text>;
-                  if (part.type === "code") return <text fg={t.markdownCode}>{part.text}</text>;
-                  return <text>{part.text}</text>;
-                }}
-              </For>
+            <For each={block.parts}>
+              {(part) => {
+                switch (part.type) {
+                  case "bold":
+                    return <text fg={t.markdownStrong}><b>{part.text}</b></text>;
+                  case "italic":
+                    return <text fg={t.markdownEmph}><i>{part.text}</i></text>;
+                  case "code":
+                    return <text fg={t.markdownCode}>{part.text}</text>;
+                  case "link":
+                    return (
+                      <text fg={t.markdownLinkText}>
+                        {part.text}<text fg={t.markdownLink}>{"(" + part.url + ")"}</text>
+                      </text>
+                    );
+                  default:
+                    return <text fg={textColor}>{part.text}</text>;
+                }
+              }}
+            </For>
           </box>
         );
       }}

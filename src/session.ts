@@ -6,7 +6,7 @@ import type { SideConfig, SessionEntry, ResolvedModel, ModelPreference } from ".
 export type ModelSource = "config" | "session" | "unknown";
 
 export type ResolvedModelWithSource = {
-  model: ResolvedModel;
+  model?: ResolvedModel;
   source: ModelSource;
 };
 
@@ -58,7 +58,7 @@ export function resolveModel(
     }
   }
 
-  return { model: {}, source: "unknown" };
+  return { source: "unknown" };
 }
 
 export function parseModelOverride(value: string) {
@@ -179,7 +179,7 @@ export function openModelPicker(
 
 function buildModelOptions(
   api: TuiPluginApi,
-  defaultModel: ResolvedModel,
+  defaultModel: ResolvedModel | undefined,
   defaultSource: ModelSource,
 ): TuiDialogSelectOption<
   { type: "default" } | { type: "model"; model: NonNullable<ResolvedModel["model"]>; variant?: string }
@@ -194,7 +194,7 @@ function buildModelOptions(
     left.name.localeCompare(right.name),
   );
 
-  const defaultModelName = defaultModel.model
+  const defaultModelName = defaultModel?.model
     ? providers
         .find((p) => p.id === defaultModel.model!.providerID)
         ?.models[defaultModel.model!.modelID]?.name ||
@@ -211,9 +211,9 @@ function buildModelOptions(
     { type: "default" } | { type: "model"; model: NonNullable<ResolvedModel["model"]>; variant?: string }
   >[] = [
     {
-      title: defaultModelName + (defaultModel.variant ? ` (${defaultModel.variant})` : ""),
+      title: defaultModelName + (defaultModel?.variant ? ` (${defaultModel.variant})` : ""),
       value: { type: "default" },
-      description: `${formatResolvedModel(defaultModel)}`,
+      description: `${defaultModel ? formatResolvedModel(defaultModel) : "default"}`,
       category: `Default [${sourceLabel[defaultSource]}]`,
     },
   ];

@@ -48,6 +48,9 @@ export type OverlayState = {
   streamingAnswer: string;
   thinkCollapsed: boolean;
   thinkConfig: ThinkConfig;
+  keybind: string | false;
+  clearKeybind: string | false;
+  thinkToggleKeybind: string | false;
   onInput?: (input: { focus: () => void } | undefined) => void;
   onChangeModel: () => void;
   onSubmit: (value: string) => boolean;

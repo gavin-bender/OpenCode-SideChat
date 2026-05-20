@@ -50,6 +50,9 @@ const tui: TuiPlugin = async (api, _options) => {
   let sessionInitPromise: Promise<string | undefined> | undefined;
   let promptTimeout: ReturnType<typeof setTimeout> | undefined;
   let cachedToolIDs: string[] | undefined;
+  let cachedPromptResult:
+    | { system: string; tools: Record<string, boolean>; permission: any[] }
+    | undefined;
 
   const getModelName = () =>
     formatPreference(
@@ -88,13 +91,15 @@ const tui: TuiPlugin = async (api, _options) => {
     }
     const toolIDs = cachedToolIDs;
     const resolvedTools = resolveAllowedTools(config.allowedTools, toolIDs);
-    return {
+    const result = {
       system: buildSideSystemPrompt(config.systemPrompt, resolvedTools),
       toolIDs,
       resolvedTools,
       tools: buildToolSelection(toolIDs, resolvedTools),
       permission: buildPermissionRules(toolIDs, resolvedTools),
     };
+    cachedPromptResult = { system: result.system, tools: result.tools, permission: result.permission };
+    return result;
   };
 
   const initSession = async (): Promise<string | undefined> => {
@@ -227,7 +232,7 @@ const tui: TuiPlugin = async (api, _options) => {
 
       void (async () => {
         try {
-          const { system, tools } = await buildSystemPrompt();
+          const { system, tools } = cachedPromptResult ?? await buildSystemPrompt();
           const resolved =
             selectedModel() ??
             resolveModel(config.model, state().entries, api).model;
@@ -238,8 +243,8 @@ const tui: TuiPlugin = async (api, _options) => {
               system,
               tools,
               parts: [{ type: "text", text }],
-              ...(resolved.model ? { model: resolved.model } : {}),
-              ...(resolved.variant ? { variant: resolved.variant } : {}),
+              ...(resolved?.model ? { model: resolved.model } : {}),
+              ...(resolved?.variant ? { variant: resolved.variant } : {}),
             },
             { throwOnError: true },
           );
@@ -324,6 +329,9 @@ const tui: TuiPlugin = async (api, _options) => {
               tokenLimit={config.tokenLimit}
               thinkCollapsed={thinkCollapsed()}
               thinkConfig={config.think}
+              keybind={config.keybind}
+              clearKeybind={config.clearKeybind}
+              thinkToggleKeybind={config.thinkToggleKeybind}
               onInput={(node) => { overlayInput = node; }}
               onChangeModel={handleChangeModel}
               onSubmit={handleSubmit}
