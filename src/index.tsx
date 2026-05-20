@@ -308,9 +308,13 @@ const tui: TuiPlugin = async (api, _options) => {
       previousFocus = api.renderer.currentFocusedRenderable;
     }
     setVisible(!wasVisible);
-    if (wasVisible && state().entries.length > 0) {
-      const entry = buildHistoryEntry(state(), getModelName());
-      if (entry) await saveEntry(entry);
+    if (wasVisible) {
+      if (state().entries.length > 0) {
+        const entry = buildHistoryEntry(state(), getModelName());
+        if (entry) await saveEntry(entry);
+      }
+      setStreamingAnswer("");
+      await destroySession();
     }
     if (wasVisible && previousFocus) {
       const restore = previousFocus;
