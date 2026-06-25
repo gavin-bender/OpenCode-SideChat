@@ -1,4 +1,5 @@
 /** @jsxImportSource @opentui/solid */
+import type { MainContextMode } from "../types";
 import { formatKeybind } from "./Helpers";
 
 type StatusBarProps = {
@@ -8,10 +9,13 @@ type StatusBarProps = {
   thinkCollapsed: boolean;
   modelKeybind: string | false;
   historyKeybind: string | false;
+  contextMode: MainContextMode;
+  contextKeybind: string | false;
   onClear: () => void;
   onToggleThink: () => void;
   onChangeModel: () => void;
   onToggleHistory: () => void;
+  onToggleContextMode: () => void;
   onStopGeneration: () => void;
   // History mode props
   historyMode: boolean;
@@ -29,70 +33,81 @@ function ChatFooter(props: {
   thinkCollapsed: boolean;
   modelKeybind: string | false;
   historyKeybind: string | false;
+  contextMode: MainContextMode;
+  contextKeybind: string | false;
   onClear: () => void;
   onToggleThink: () => void;
   onChangeModel: () => void;
   onToggleHistory: () => void;
+  onToggleContextMode: () => void;
   onStopGeneration: () => void;
   theme: import("@opencode-ai/plugin/tui").TuiThemeCurrent;
 }) {
+  const contextLabel = () => props.contextMode === "compact" ? "Context: Compact" : props.contextMode === "full" ? "Context: Full" : "Context: None";
+
   return (
     <box
-      flexDirection="row"
-      gap={1}
+      flexDirection="column"
+      gap={0}
       paddingTop={0}
-      paddingBottom={1}
+      paddingBottom={0}
       paddingLeft={1}
       paddingRight={1}
-      alignItems="center"
     >
-      {props.loading ? (
-        <box flexDirection="row" gap={1} alignItems="center" onMouseDown={() => props.onStopGeneration()}>
-          <text fg={props.theme.error}>
-            <b>{"Esc"}</b>
-          </text>
-          <text fg={props.theme.primary}>{"Stop"}</text>
+      <box flexDirection="row" gap={1} alignItems="center">
+        {props.loading ? (
+          <box flexDirection="row" gap={1} alignItems="center" onMouseDown={() => props.onStopGeneration()}>
+            <text fg={props.theme.error}>
+              <b>{"Esc"}</b>
+            </text>
+            <text fg={props.theme.primary}>{"Stop"}</text>
+          </box>
+        ) : (
+          <>
+            {formatKeybind(props.clearKeybind) && (
+              <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onClear}>
+                <text fg={props.theme.secondary}>
+                  <b>{formatKeybind(props.clearKeybind)}</b>
+                </text>
+                <text fg={props.theme.primary}>{"Clear"}</text>
+              </box>
+            )}
+            <text fg={props.theme.textMuted}>{"·"}</text>
+            {formatKeybind(props.thinkToggleKeybind) && (
+              <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onToggleThink}>
+                <text fg={props.theme.secondary}>
+                  <b>{formatKeybind(props.thinkToggleKeybind)}</b>
+                </text>
+                <text fg={props.theme.primary}>{"Thinking"}</text>
+              </box>
+            )}
+            <text fg={props.theme.textMuted}>{"·"}</text>
+            {formatKeybind(props.modelKeybind) && (
+              <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onChangeModel}>
+                <text fg={props.theme.secondary}>
+                  <b>{formatKeybind(props.modelKeybind)}</b>
+                </text>
+                <text fg={props.theme.primary}>{"Model"}</text>
+              </box>
+            )}
+          </>
+        )}
+      </box>
+      <box flexDirection="row" gap={1} alignItems="center">
+        <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onToggleContextMode}>
+          {formatKeybind(props.contextKeybind) && <text fg={props.theme.secondary}><b>{formatKeybind(props.contextKeybind)}</b></text>}
+          <text fg={props.theme.primary}>{contextLabel()}</text>
         </box>
-      ) : (
-        <>
-          {formatKeybind(props.clearKeybind) && (
-            <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onClear}>
-              <text fg={props.theme.secondary}>
-                <b>{formatKeybind(props.clearKeybind)}</b>
-              </text>
-              <text fg={props.theme.primary}>{"Clear"}</text>
-            </box>
-          )}
-          <text fg={props.theme.textMuted}>{"·"}</text>
-          {formatKeybind(props.thinkToggleKeybind) && (
-            <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onToggleThink}>
-              <text fg={props.theme.secondary}>
-                <b>{formatKeybind(props.thinkToggleKeybind)}</b>
-              </text>
-              <text fg={props.theme.primary}>{"Thinking"}</text>
-              <text fg={props.theme.textMuted}>{props.thinkCollapsed ? "" : "(on)"}</text>
-            </box>
-          )}
-          <text fg={props.theme.textMuted}>{"·"}</text>
-          {formatKeybind(props.modelKeybind) && (
-            <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onChangeModel}>
-              <text fg={props.theme.secondary}>
-                <b>{formatKeybind(props.modelKeybind)}</b>
-              </text>
-              <text fg={props.theme.primary}>{"Model"}</text>
-            </box>
-          )}
-          <text fg={props.theme.textMuted}>{"·"}</text>
-        </>
-      )}
-      {formatKeybind(props.historyKeybind) && (
+        <text fg={props.theme.textMuted}>{"·"}</text>
+        {formatKeybind(props.historyKeybind) && (
         <box flexDirection="row" gap={1} alignItems="center" onMouseDown={props.onToggleHistory}>
           <text fg={props.theme.secondary}>
             <b>{formatKeybind(props.historyKeybind)}</b>
           </text>
           <text fg={props.theme.primary}>{"History"}</text>
         </box>
-      )}
+        )}
+      </box>
     </box>
   );
 }
@@ -172,10 +187,13 @@ export function StatusBar(props: StatusBarProps) {
       thinkCollapsed={props.thinkCollapsed}
       modelKeybind={props.modelKeybind}
       historyKeybind={props.historyKeybind}
+      contextMode={props.contextMode}
+      contextKeybind={props.contextKeybind}
       onClear={props.onClear}
       onToggleThink={props.onToggleThink}
       onChangeModel={props.onChangeModel}
       onToggleHistory={props.onToggleHistory}
+      onToggleContextMode={props.onToggleContextMode}
       onStopGeneration={props.onStopGeneration}
       theme={props.theme}
     />

@@ -10,11 +10,18 @@ import {
   DEFAULT_HISTORY_KEYBIND,
   DEFAULT_DELETE_KEYBIND,
   DEFAULT_MODEL_KEYBIND,
+  DEFAULT_CONTEXT_KEYBIND,
+  DEFAULT_MAIN_CONTEXT_MODE,
+  DEFAULT_COMPACT_MAX_CHARS,
+  DEFAULT_FULL_MAX_CHARS,
+  DEFAULT_COMPACT_HEAD_MESSAGES,
+  DEFAULT_COMPACT_TAIL_MESSAGES,
+  DEFAULT_FULL_INCLUDE_TOOL_OUTPUTS,
   DEFAULT_WIDTH,
   DEFAULT_POSITION,
   DEFAULT_SYSTEM_PROMPT,
 } from "./constants";
-import type { SideConfig, ThinkConfig } from "./types";
+import type { MainContextConfig, MainContextMode, SideConfig, ThinkConfig } from "./types";
 
 const VALID_POSITIONS = new Set(["bottom-right", "bottom-left", "top-right", "top-left"]);
 
@@ -114,8 +121,8 @@ function generateDefaultConfig(): string {
   const defaultAllowedTools = JSON.stringify(DEFAULT_ALLOWED_TOOLS);
   return `{
   // OpenCode SideChat Configuration
-  // Keybinds default: ${DEFAULT_KEYBIND} (toggle), ${DEFAULT_CLEAR_KEYBIND} (clear), ${DEFAULT_THINK_TOGGLE_KEYBIND} (think), ${DEFAULT_HISTORY_KEYBIND} (history), ${DEFAULT_DELETE_KEYBIND} (delete), ${DEFAULT_MODEL_KEYBIND} (model)
-  // Override any keybind by adding it here (e.g. "keybind": "ctrl+s"). Set to "none" to disable.
+  // Keybinds default: ${DEFAULT_KEYBIND} (toggle), ${DEFAULT_CLEAR_KEYBIND} (clear), ${DEFAULT_THINK_TOGGLE_KEYBIND} (think), ${DEFAULT_HISTORY_KEYBIND} (history), ${DEFAULT_DELETE_KEYBIND} (delete), ${DEFAULT_MODEL_KEYBIND} (model), ${DEFAULT_CONTEXT_KEYBIND} (context)
+  // Override any keybind by adding it here (e.g. "keybind": "ctrl+s"). Set to false or "none" to disable.
   "model": null,
   "systemPrompt": ${JSON.stringify(DEFAULT_SYSTEM_PROMPT)},
   "allowedTools": ${defaultAllowedTools},
@@ -125,7 +132,16 @@ function generateDefaultConfig(): string {
     "defaultState": "collapsed",
     "showSummary": false
   },
-  "position": "bottom-right"
+  "position": "bottom-right",
+  "mainContext": {
+    "defaultMode": "compact",
+    "compactMaxChars": ${DEFAULT_COMPACT_MAX_CHARS},
+    "fullMaxChars": ${DEFAULT_FULL_MAX_CHARS},
+    "compactHeadMessages": ${DEFAULT_COMPACT_HEAD_MESSAGES},
+    "compactTailMessages": ${DEFAULT_COMPACT_TAIL_MESSAGES},
+    "fullIncludeToolOutputs": ${DEFAULT_FULL_INCLUDE_TOOL_OUTPUTS},
+    "contextKeybind": "${DEFAULT_CONTEXT_KEYBIND}"
+  }
 }
 `;
 }
@@ -168,6 +184,7 @@ export function loadConfig(): SideConfig {
     width: parsePositiveNumber(raw.width, DEFAULT_WIDTH),
     position: parsePosition(raw.position),
     think: parseThinkConfig(raw.think),
+    mainContext: parseMainContextConfig(raw.mainContext),
   };
 }
 
@@ -206,5 +223,26 @@ function parseThinkConfig(value: unknown): ThinkConfig {
   return {
     defaultState: obj.defaultState === "expanded" ? "expanded" : "collapsed",
     showSummary: obj.showSummary === true,
+  };
+}
+
+function parseMainContextMode(value: unknown): MainContextMode {
+  return value === "full" || value === "none" || value === "compact" ? value : DEFAULT_MAIN_CONTEXT_MODE;
+}
+
+function parseBooleanDefaultTrue(value: unknown): boolean {
+  return value === false ? false : true;
+}
+
+function parseMainContextConfig(value: unknown): MainContextConfig {
+  const obj = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    defaultMode: parseMainContextMode(obj.defaultMode),
+    compactMaxChars: parsePositiveNumber(obj.compactMaxChars, DEFAULT_COMPACT_MAX_CHARS),
+    fullMaxChars: parsePositiveNumber(obj.fullMaxChars, DEFAULT_FULL_MAX_CHARS),
+    compactHeadMessages: parsePositiveNumber(obj.compactHeadMessages, DEFAULT_COMPACT_HEAD_MESSAGES),
+    compactTailMessages: parsePositiveNumber(obj.compactTailMessages, DEFAULT_COMPACT_TAIL_MESSAGES),
+    fullIncludeToolOutputs: parseBooleanDefaultTrue(obj.fullIncludeToolOutputs),
+    contextKeybind: parseKeybind(obj.contextKeybind, DEFAULT_CONTEXT_KEYBIND),
   };
 }

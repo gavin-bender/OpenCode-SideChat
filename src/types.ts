@@ -1,6 +1,18 @@
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui";
 import type { Message, Part } from "@opencode-ai/sdk/v2";
 
+export type MainContextMode = "compact" | "full" | "none";
+
+export type MainContextConfig = {
+  defaultMode: MainContextMode;
+  compactMaxChars: number;
+  fullMaxChars: number;
+  compactHeadMessages: number;
+  compactTailMessages: number;
+  fullIncludeToolOutputs: boolean;
+  contextKeybind: string | false;
+};
+
 export type ThinkConfig = {
   defaultState: "collapsed" | "expanded";
   showSummary: boolean;
@@ -20,6 +32,7 @@ export type SideConfig = {
   width: number;
   position: string;
   think: ThinkConfig;
+  mainContext: MainContextConfig;
 };
 
 export type SessionEntry = {
@@ -80,10 +93,13 @@ export type OverlayState = {
   historyKeybind: string | false;
   deleteKeybind: string | false;
   modelKeybind: string | false;
+  contextMode: MainContextMode;
+  contextKeybind: string | false;
   position: string;
   deleteConfirmPending: boolean;
   onInput?: (input: { focus: () => void } | undefined) => void;
   onChangeModel: () => void;
+  onToggleContextMode: () => void;
   onSubmit: (value: string) => boolean;
   onStopGeneration: () => void;
   historyMode: boolean;
