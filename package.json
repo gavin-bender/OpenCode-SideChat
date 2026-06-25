@@ -16,7 +16,8 @@
     "src"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@opencode-ai/plugin": ">=1.14.48",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3"
   }
 }
