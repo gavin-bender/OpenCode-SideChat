@@ -24,7 +24,7 @@ export function SideChat(props: OverlayState & { width: number; tokenLimit: numb
   const scrollboxHeight = createMemo(() => {
     const usedByHeader = 2;
     const usedByInput = 2;
-    const usedByFooter = 1;
+    const usedByFooter = 2;
     const border = 2;
     const minScrollbox = 3;
     return Math.max(minScrollbox, panelMaxHeight() - usedByHeader - usedByInput - usedByFooter - border);

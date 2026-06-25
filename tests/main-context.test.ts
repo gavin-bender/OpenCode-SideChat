@@ -3,12 +3,17 @@ import assert from "node:assert/strict";
 import type { Message, Part } from "@opencode-ai/sdk/v2";
 import type { MainContextConfig } from "../src/types";
 import { buildMainContextBlock, formatMainContextEntries, type MainContextEntry } from "../src/main-context";
+import { DEFAULT_CONTEXT_KEYBIND } from "../src/constants";
 
-const config: MainContextConfig = { defaultMode: "compact", compactMaxChars: 50_000, fullMaxChars: 200_000, compactHeadMessages: 2, compactTailMessages: 2, fullIncludeToolOutputs: true, contextKeybind: "ctrl+g" };
+const config: MainContextConfig = { defaultMode: "compact", compactMaxChars: 50_000, fullMaxChars: 200_000, compactHeadMessages: 2, compactTailMessages: 2, fullIncludeToolOutputs: true, contextKeybind: "ctrl+x" };
 const message = (id: string, role: "user" | "assistant") => ({ id, role }) as Message;
 const textPart = (id: string, text: string) => ({ id, type: "text", text }) as Part;
 const toolPart = (id: string) => ({ id, type: "tool", tool: "bash", state: { status: "completed", title: "Run tests", input: { command: "npm test" }, output: "PASS all tests", time: { start: 10, end: 25 } } }) as unknown as Part;
 const entries = (count: number): MainContextEntry[] => Array.from({ length: count }, (_, i) => ({ info: message(`m${i + 1}`, i % 2 === 0 ? "user" : "assistant"), parts: [textPart(`p${i + 1}`, `message ${i + 1}`)] }));
+
+describe("default context keybind", () => {
+  it("uses ctrl+x", () => assert.equal(DEFAULT_CONTEXT_KEYBIND, config.contextKeybind));
+});
 
 describe("formatMainContextEntries", () => {
   it("returns empty string for none", () => assert.equal(formatMainContextEntries(entries(2), "none", config), ""));

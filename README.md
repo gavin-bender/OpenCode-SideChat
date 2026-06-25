@@ -23,7 +23,7 @@ Or add to `~/.config/opencode/tui.json`: `["opencode-sidechat"]`
 | `Alt+T` | Toggle thinking blocks |
 | `Alt+H` | Toggle history viewer |
 | `Alt+D` | Delete selected history entry (in history view) |
-| `Ctrl+G` | Cycle context mode: Compact → Full → None |
+| `Ctrl+X` | Cycle context mode: Compact → Full → None |
 | `Tab` | Change model |
 
 Clickable items in the footer: **Clear**, **Thinking**, **Model**, **Context**, **History** — also work via their respective keybinds when enabled. The footer shows Context: Compact, Context: Full, or Context: None.
@@ -70,7 +70,7 @@ Settings in `~/.config/opencode/sidechat.jsonc`:
     "compactHeadMessages": 4,         // Earliest messages included in compact mode
     "compactTailMessages": 20,        // Latest messages included in compact mode
     "fullIncludeToolOutputs": true,   // Include raw tool outputs in full mode
-    "contextKeybind": "ctrl+g"        // Set false or "none" to disable keybind only
+    "contextKeybind": "ctrl+x"        // Set false or "none" to disable keybind only
   }
 }
 ```
