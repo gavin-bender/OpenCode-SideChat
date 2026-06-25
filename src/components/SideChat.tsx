@@ -229,6 +229,9 @@ export function SideChat(props: OverlayState & { width: number; tokenLimit: numb
           thinkCollapsed={props.thinkCollapsed}
           modelKeybind={props.modelKeybind}
           historyKeybind={props.historyKeybind}
+          contextMode={props.contextMode}
+          contextKeybind={props.contextKeybind}
+          onToggleContextMode={props.onToggleContextMode}
           onClear={props.onClear}
           onToggleThink={props.onToggleThink}
           onChangeModel={props.onChangeModel}

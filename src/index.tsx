@@ -16,21 +16,24 @@ import {
   CMD_HISTORY_DOWN,
   CMD_HISTORY_SELECT,
   CMD_RELOAD_CONFIG,
+  CMD_TOGGLE_CONTEXT,
   PLUGIN_ID,
 } from "./constants";
 import { loadHistory, saveEntry, deleteEntry, buildHistoryEntry } from "./history";
+import { buildMainContextBlock } from "./main-context";
 import {
   getAvailableToolIDs,
   resolveAllowedTools,
   buildToolSelection,
   buildPermissionRules,
   buildSideSystemPrompt,
+  appendMainContextBlock,
   resolveModel,
   formatPreference,
   openModelPicker,
   getErrorMessage,
 } from "./session";
-import type { SideDialogState, ModelPreference, HistoryEntry } from "./types";
+import type { MainContextMode, SideDialogState, ModelPreference, HistoryEntry } from "./types";
 
 const PROMPT_TIMEOUT_MS = 120_000;
 
@@ -42,6 +45,7 @@ const tui: TuiPlugin = async (api, _options) => {
   const historyKeybind = config().historyKeybind;
   const deleteKeybind = config().deleteKeybind;
   const modelKeybind = config().modelKeybind;
+  const contextKeybind = config().mainContext.contextKeybind;
 
   const [store, setStore] = createStore({
     entries: [] as SideDialogState["entries"],
@@ -58,6 +62,7 @@ const tui: TuiPlugin = async (api, _options) => {
     selectedHistoryId: undefined as string | undefined,
     deleteConfirmPending: false,
     focusedHistoryIndex: -1,
+    contextMode: config().mainContext.defaultMode as MainContextMode,
   });
 
   let overlayInput: { focus: () => void } | undefined;
@@ -245,7 +250,9 @@ const tui: TuiPlugin = async (api, _options) => {
 
       void (async () => {
         try {
-          const { system, tools } = cachedPromptResult ?? await buildSystemPrompt();
+          const { system: baseSystem, tools } = cachedPromptResult ?? await buildSystemPrompt();
+          const contextBlock = buildMainContextBlock(api, store.contextMode, config().mainContext, store.tempSessionID);
+          const system = appendMainContextBlock(baseSystem, contextBlock);
           if (generation !== myGen) return;
           const resolved =
             store.selectedModel ??
@@ -329,6 +336,14 @@ const tui: TuiPlugin = async (api, _options) => {
     setStore("thinkCollapsed", (prev) => !prev);
   };
 
+  const handleToggleContextMode = () => {
+    setStore("contextMode", (prev) => {
+      if (prev === "compact") return "full";
+      if (prev === "full") return "none";
+      return "compact";
+    });
+  };
+
   const handleToggleHistory = async () => {
     const next = !store.historyMode;
     if (next) {
@@ -393,7 +408,9 @@ const tui: TuiPlugin = async (api, _options) => {
 
   const handleReloadConfig = () => {
     try {
-      setConfig(loadConfig());
+      const nextConfig = loadConfig();
+      setConfig(nextConfig);
+      setStore("contextMode", nextConfig.mainContext.defaultMode);
       // Clear caches so next prompt rebuilds system prompt/tools
       cachedToolIDs = undefined;
       cachedPromptResult = undefined;
@@ -438,6 +455,9 @@ const tui: TuiPlugin = async (api, _options) => {
               historyKeybind={config().historyKeybind}
               deleteKeybind={config().deleteKeybind}
               modelKeybind={config().modelKeybind}
+              contextMode={store.contextMode}
+              contextKeybind={config().mainContext.contextKeybind}
+              onToggleContextMode={handleToggleContextMode}
               deleteConfirmPending={store.deleteConfirmPending}
               onStopGeneration={handleStopGeneration}
               focusedHistoryIndex={store.focusedHistoryIndex}
@@ -512,6 +532,7 @@ const tui: TuiPlugin = async (api, _options) => {
         enabled: () => api.route.current.name === "session",
         run: () => handleReloadConfig(),
       },
+      { namespace: "palette", name: CMD_TOGGLE_CONTEXT, title: "side context", desc: "Cycle side chat main-context mode", category: "Plugin", slashName: "side-context", enabled: () => api.route.current.name === "session" || store.visible, run: () => handleToggleContextMode() },
     ],
     bindings: [
       ...(keybind !== false
@@ -528,6 +549,7 @@ const tui: TuiPlugin = async (api, _options) => {
             desc: "Toggle side chat history",
           }]
         : []),
+      ...(contextKeybind !== false ? [{ key: contextKeybind, cmd: CMD_TOGGLE_CONTEXT }] : []),
     ],
   });
 
@@ -538,6 +560,7 @@ const tui: TuiPlugin = async (api, _options) => {
       { name: CMD_CLEAR, run: () => void handleClear() },
       { name: CMD_CHANGE_MODEL, run: () => handleChangeModel() },
       { name: CMD_TOGGLE_THINK, run: () => handleToggleThink() },
+      { name: CMD_TOGGLE_CONTEXT, run: () => handleToggleContextMode() },
       { name: CMD_TOGGLE_HISTORY, run: () => handleToggleHistory() },
       { name: CMD_DELETE, run: () => { if (store.selectedHistoryId) handleDeleteHistoryEntry(store.selectedHistoryId); } },
       { name: CMD_HISTORY_UP, run: () => { if (store.historyMode) handleHistoryUp(); } },
@@ -554,6 +577,7 @@ const tui: TuiPlugin = async (api, _options) => {
       ...(modelKeybind !== false
         ? [{ key: modelKeybind, cmd: CMD_CHANGE_MODEL }]
         : []),
+      ...(contextKeybind !== false ? [{ key: contextKeybind, cmd: CMD_TOGGLE_CONTEXT }] : []),
       ...(deleteKeybind !== false
         ? [{
             key: deleteKeybind,

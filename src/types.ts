@@ -93,10 +93,13 @@ export type OverlayState = {
   historyKeybind: string | false;
   deleteKeybind: string | false;
   modelKeybind: string | false;
+  contextMode: MainContextMode;
+  contextKeybind: string | false;
   position: string;
   deleteConfirmPending: boolean;
   onInput?: (input: { focus: () => void } | undefined) => void;
   onChangeModel: () => void;
+  onToggleContextMode: () => void;
   onSubmit: (value: string) => boolean;
   onStopGeneration: () => void;
   historyMode: boolean;

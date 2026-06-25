@@ -134,6 +134,10 @@ export function buildSideSystemPrompt(systemPrompt: string, allowedTools: string
   return `${SYSTEM_PROMPT_OVERRIDE}\n\n${systemPrompt} ${toolsNote}`;
 }
 
+export function appendMainContextBlock(systemPrompt: string, contextBlock: string): string {
+  return contextBlock ? `${systemPrompt}\n\n${contextBlock}` : systemPrompt;
+}
+
 export function openModelPicker(
   api: TuiPluginApi,
   config: SideConfig,
